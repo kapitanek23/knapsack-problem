@@ -18,6 +18,7 @@ from algorithms.dynamic import dynamic_programming_knapsack
 from algorithms.backtracking import backtracking_knapsack
 # Import dla problemu MKP
 from algorithms.mkp_backtracking import mkp_backtracking_knapsack
+from algorithms.mkp_dynamic_m2 import mkp_dynamic_programming_m2
 # Import dla wykresów (jeśli używane dla 0/1)
 from analysis.comparison import plot_comparison
 from utils import generate_random_items # Dodaj ten import
@@ -111,7 +112,7 @@ if __name__ == "__main__":
 
     # --- Konfiguracja ---
     # Zmień 'mode', aby wybrać typ problemu: '01', 'MKP' lub 'SCALABILITY'
-    mode = 'SCALABILITY'  # <--- Zmień tryb
+    mode = 'MKP'  # <--- Zmień tryb
 
     # !!! PRZENIEŚ DEFINICJĘ script_dir TUTAJ !!!
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -257,6 +258,7 @@ else:
         print(f"\n--- Uruchamianie algorytmów dla Problemu MKP (Pojemności: {knapsack_capacities_mkp}) ---")
         results_mkp = {} # Osobny słownik na wyniki MKP
 
+
         # Backtracking MKP
         try:
             res, time = measure_time(mkp_backtracking_knapsack, items, knapsack_capacities_mkp)
@@ -269,8 +271,37 @@ else:
         except Exception as e: print(f"Błąd Backtracking (MKP): {e}"); results_mkp['mkp_backtracking'] = {'result': None, 'time': -1}
 
         # Dodaj tutaj wywołania innych algorytmów MKP, jeśli je zaimplementujesz
+        # DP MKP (m=2) - uruchom tylko jeśli są dokładnie 2 plecaki
+        if len(knapsack_capacities_mkp) == 2:
+            try:
+                cap1, cap2 = knapsack_capacities_mkp # Rozpakuj pojemności
+                # Upewnij się, że pojemności są int
+                if not isinstance(cap1, int) or not isinstance(cap2, int):
+                    raise TypeError("Pojemności dla DP MKP m=2 muszą być liczbami całkowitymi.")
 
-        print("\n===== Zakończono uruchamianie algorytmów MKP =====")
+                res, time = measure_time(mkp_dynamic_programming_m2, items, cap1, cap2)
+                # Użyj funkcji print_mkp_results (powinna działać)
+                print_mkp_results("DP MKP (m=2)", res, time, knapsack_capacities_mkp)
+                results_mkp['mkp_dp_m2'] = {'result': res, 'time': time}
+            except ImportError:
+                print("\n--- DP MKP (m=2) [Błąd] ---")
+                print("  Brak biblioteki NumPy. Uruchom: pip install numpy")
+                print("-" * 26)
+                results_mkp['mkp_dp_m2'] = {'result': None, 'time': -1}
+            except (ValueError, TypeError) as e:
+                print("\n--- DP MKP (m=2) [Błąd] ---")
+                print(f"  Błąd wymagań DP MKP: {e}")
+                print("-" * 26)
+                results_mkp['mkp_dp_m2'] = {'result': None, 'time': -1}
+            except Exception as e:
+                print(f"Błąd wykonania DP MKP (m=2): {e}")
+                results_mkp['mkp_dp_m2'] = {'result': None, 'time': -1}
+        else:
+            print("\n--- DP MKP (m=2) [Pominięto] ---")
+            print("  (Dostępny tylko dla dokładnie 2 plecaków)")
+            print("-" * 32)
+            results_mkp['mkp_dp_m2'] = {'result': None, 'time': -2} # Oznacz jako pominięty
+            print("\n===== Zakończono uruchamianie algorytmów MKP =====")
 
         # --- Generowanie Wykresów/Analizy dla MKP (jeśli potrzebne) ---
         if results_mkp:
