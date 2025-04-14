@@ -1,4 +1,5 @@
 # main.py
+from analysis.comparison import plot_comparison
 
 import os # Do operacji na ścieżkach
 from utils import (
@@ -143,5 +144,16 @@ if __name__ == "__main__":
 
         print("\n===== Zakończono uruchamianie algorytmów =====")
 
-        # Tutaj w przyszłości można dodać kod do generowania wykresów
-        # np. wywołując funkcję z analysis/comparison.py przekazując 'results'
+        # --- Generowanie wykresów porównawczych ---
+        if results: # Sprawdź, czy słownik results nie jest pusty
+            # Użyj nazwy źródła danych i pojemności w nazwie pliku dla unikalności
+            plot_filename_prefix = f"comparison_{data_source}_cap{knapsack_capacity}"
+            try:
+                # Wywołanie funkcji z comparison.py
+                plot_comparison(results, knapsack_capacity, data_source, filename_prefix=plot_filename_prefix)
+            except Exception as e:
+                 print(f"\nBłąd podczas generowania wykresów: {e}")
+        else: # Ten blok wykonuje się TYLKO jeśli 'results' jest puste
+            print("\nNie zebrano żadnych wyników, pomijanie generowania wykresów.")
+
+        print("\n===== Koniec programu =====") # Dodajmy końcowy komunikat
