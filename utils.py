@@ -3,6 +3,7 @@
 import csv
 import time
 import os # Potrzebne do tworzenia ścieżek niezależnych od systemu
+import random # Do generowania losowych danych
 
 # --- Funkcje do wczytywania danych ---
 
@@ -130,6 +131,46 @@ def measure_time(func, *args, **kwargs):
     execution_time = end_time - start_time
     return result, execution_time
 
+# --- Funkcja do generowania losowych przedmiotów ---
+
+def generate_random_items(num_items, value_range=(1, 100), weight_range=(1, 50)):
+    """
+    Generuje listę losowych przedmiotów dla problemu plecakowego.
+
+    Args:
+        num_items (int): Liczba przedmiotów do wygenerowania (n).
+        value_range (tuple): Krotka (min_value, max_value) dla losowych wartości.
+        weight_range (tuple): Krotka (min_weight, max_weight) dla losowych wag (int).
+
+    Returns:
+        list: Lista słowników losowo wygenerowanych przedmiotów.
+              Format: [{'id': 'item_0', 'value': 75.0, 'weight': 23}, ...]
+              Wartości są float, wagi są int.
+    """
+    items = []
+    min_val, max_val = value_range
+    min_wei, max_wei = weight_range
+
+    # Sprawdzenie poprawności zakresów
+    if not (isinstance(num_items, int) and num_items > 0):
+        raise ValueError("Liczba przedmiotów musi być dodatnią liczbą całkowitą.")
+    if not (isinstance(min_val, (int, float)) and isinstance(max_val, (int, float)) and min_val <= max_val):
+        raise ValueError("Niepoprawny zakres wartości.")
+    if not (isinstance(min_wei, int) and isinstance(max_wei, int) and min_wei >= 1 and min_wei <= max_wei):
+         raise ValueError("Wagi muszą być dodatnimi liczbami całkowitymi, a zakres wag poprawny.")
+
+
+    for i in range(num_items):
+        # Używamy random.uniform dla wartości (float) i random.randint dla wag (int)
+        value = random.uniform(min_val, max_val)
+        weight = random.randint(min_wei, max_wei)
+        items.append({
+            'id': f'item_{i}',
+            'value': round(value, 2), # Zaokrąglamy wartość dla czytelności
+            'weight': weight
+        })
+    return items
+
 # --- Blok testowy dla utils ---
 if __name__ == "__main__":
     print("--- Testowanie funkcji z utils.py ---")
@@ -203,3 +244,14 @@ if __name__ == "__main__":
     result, exec_time = measure_time(slow_function, 5)
     print(f"Wynik funkcji: {result}")
     print(f"Czas wykonania: {exec_time:.4f} s")
+
+    # Test generowania losowych danych
+    print("\nTest generate_random_items(5):")
+    try:
+        random_items_small = generate_random_items(5)
+        print(random_items_small)
+        print(f"\nTest generate_random_items(15, value_range=(50, 150), weight_range=(5, 20)):")
+        random_items_medium = generate_random_items(15, value_range=(50, 150), weight_range=(5, 20))
+        print(random_items_medium)
+    except ValueError as e:
+        print(f"Błąd generowania: {e}")

@@ -35,6 +35,7 @@ def plot_comparison(results_data, capacity, data_source_name, filename_prefix="c
         'greedy_weight': 'Zachłanny\n(Waga)',
         'greedy_density': 'Zachłanny\n(Gęstość)',
         'brute_force': 'Brute Force\n(Optymalny)',
+        'backtracking': 'Backtracking\n(Optymalny)',
         'dynamic': 'Dynamiczny\n(Optymalny)'
     }
 
