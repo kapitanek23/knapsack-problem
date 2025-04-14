@@ -16,6 +16,7 @@ from algorithms.greedy import (
 from algorithms.brute_force import brute_force_knapsack
 from algorithms.dynamic import dynamic_programming_knapsack
 from algorithms.backtracking import backtracking_knapsack
+
 # Import dla problemu MKP
 from algorithms.mkp_backtracking import mkp_backtracking_knapsack
 from algorithms.mkp_dynamic_m2 import mkp_dynamic_programming_m2
@@ -137,9 +138,193 @@ if __name__ == "__main__":
     # Teraz 'script_dir' jest zdefiniowane i można go użyć poniżej
     scalability_results_file = os.path.join(script_dir, 'analysis', 'results', 'scalability_results.json')
 
-    # Ścieżki do plików CSV (mogą zostać tutaj, bo używają script_dir)
+# --- Funkcja pomocnicza do zadawania pytań ---
+def get_user_choice(prompt, choices):
+    """Zadaje pytanie i pobiera od użytkownika wybór z listy."""
+    print(prompt)
+    for i, choice in enumerate(choices):
+        print(f"  {i+1}. {choice}")
+    while True:
+        try:
+            choice_num = int(input(f"Wybierz numer (1-{len(choices)}): "))
+            if 1 <= choice_num <= len(choices):
+                return choices[choice_num - 1]
+            else:
+                print("Niepoprawny numer.")
+        except ValueError:
+            print("Proszę wpisać liczbę.")
+        except EOFError: # Obsługa Ctrl+D/Ctrl+Z
+             print("\nAnulowano wprowadzanie.")
+             return None
+
+def get_user_input(prompt, input_type=str, default=None, validation_func=None):
+    """Zadaje pytanie i pobiera od użytkownika wartość danego typu."""
+    full_prompt = prompt
+    if default is not None:
+        full_prompt += f" (domyślnie: {default})"
+    full_prompt += ": "
+
+    while True:
+        try:
+            user_input = input(full_prompt)
+            if not user_input and default is not None:
+                 value = default
+            else:
+                 value = input_type(user_input)
+
+            if validation_func and not validation_func(value):
+                 # Funkcja walidacyjna powinna sama drukować błąd
+                 continue # Spróbuj ponownie
+
+            return value
+        except ValueError:
+            print(f"Niepoprawny format. Oczekiwano typu: {input_type.__name__}.")
+        except EOFError:
+             print("\nAnulowano wprowadzanie.")
+             return None
+
+def get_int_list(prompt, default=None):
+     """Pobiera listę liczb całkowitych oddzielonych spacją."""
+     full_prompt = prompt
+     if default is not None:
+         full_prompt += f" (domyślnie: {' '.join(map(str, default))})"
+     full_prompt += ": "
+     while True:
+         try:
+             user_input = input(full_prompt)
+             if not user_input and default is not None:
+                 return default
+             # Podziel string po spacjach i skonwertuj każdy element na int
+             values = [int(x.strip()) for x in user_input.split()]
+             if not values: # Jeśli użytkownik wpisał tylko spacje
+                  raise ValueError("Wprowadź liczby oddzielone spacją.")
+             return values
+         except ValueError:
+             print("Niepoprawny format. Wprowadź liczby całkowite oddzielone spacją (np. 10 15 20).")
+         except EOFError:
+             print("\nAnulowano wprowadzanie.")
+             return None
+
+
+# --- Główny blok wykonawczy ---
+if __name__ == "__main__":
+    print("===== Witaj w Analizatorze Problemu Plecakowego! =====")
+
+    # --- Interaktywna Konfiguracja ---
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Wybór trybu
+    mode_choices = ['01', 'MKP', 'SCALABILITY']
+    mode = get_user_choice("\nWybierz tryb pracy:", mode_choices)
+    if mode is None: exit()
+
+    print(f"\nWybrano tryb: {mode}")
+
+    # --- Inicjalizacja domyślnych wartości konfiguracyjnych ---
+    # (Te wartości zostaną użyte, jeśli użytkownik naciśnie Enter przy pytaniu)
+    knapsack_capacity_01 = 10
+    data_source_01 = 'large'
+    knapsack_capacities_mkp = [10, 12]
+    data_source_mkp = 'large'
+    scalability_param = 'n'
+    n_values_default = [5, 10, 15, 20, 25, 30]
+    W_values_default = [50, 100, 200, 400, 800, 1000]
+    fixed_W_default = 500
+    fixed_n_default = 20
+    algorithms_to_scale_default = ['dynamic', 'backtracking']
+    scalability_results_file = os.path.join(script_dir, 'analysis', 'results', 'scalability_results.json') # Początkowa nazwa
+
+    # --- Zbieranie konfiguracji specyficznej dla trybu ---
+    if mode == '01':
+        knapsack_capacity_01 = get_user_input("Podaj pojemność plecaka (liczba całkowita)", int, default=knapsack_capacity_01, validation_func=lambda x: x>=0 or print("Pojemność nie może być ujemna."))
+        if knapsack_capacity_01 is None: exit()
+        ds_choices = ['small', 'large', 'csv_small', 'csv_large']
+        data_source_01 = get_user_choice("Wybierz źródło danych dla trybu '01':", ds_choices)
+        if data_source_01 is None: exit()
+
+    elif mode == 'MKP':
+        knapsack_capacities_mkp = get_int_list("Podaj pojemności plecaków oddzielone spacją", default=knapsack_capacities_mkp)
+        if knapsack_capacities_mkp is None: exit()
+        if not all(isinstance(c, int) and c >= 0 for c in knapsack_capacities_mkp):
+             print("Błąd: Wszystkie pojemności muszą być nieujemnymi liczbami całkowitymi.")
+             exit()
+        if len(knapsack_capacities_mkp) != 2:
+            print("Uwaga: Zaimplementowany algorytm DP MKP działa tylko dla dokładnie 2 plecaków.")
+        ds_choices = ['small', 'large', 'csv_small', 'csv_large']
+        data_source_mkp = get_user_choice("Wybierz źródło danych dla trybu 'MKP':", ds_choices)
+        if data_source_mkp is None: exit()
+
+    elif mode == 'SCALABILITY':
+        # Wybierz parametr skalowalności
+        scale_choices = ['n', 'W']
+        scalability_param = get_user_choice("Wybierz parametr analizy skalowalności:", scale_choices)
+        if scalability_param is None: exit()
+        # Ustaw nazwę pliku wynikowego na podstawie wybranego parametru
+        scalability_results_file = os.path.join(script_dir, 'analysis', 'results', f'scalability_results_{scalability_param}.json')
+
+        print(f"\nKonfiguracja analizy skalowalności wg '{scalability_param}':")
+
+        # Pytania o parametry specyficzne dla wybranego scalability_param
+        if scalability_param == 'n':
+            n_values = get_int_list(f"Podaj wartości 'n' do testowania (oddzielone spacją)", default=n_values_default)
+            if n_values is None: exit()
+            if not all(isinstance(val, int) and val > 0 for val in n_values): print("Błąd: 'n' musi być dodatnią liczbą całkowitą."); exit()
+
+            fixed_W_for_n_analysis = get_user_input(f"Podaj stałą pojemność 'W' dla tej analizy", int, default=fixed_W_default, validation_func=lambda x: x>=0 or print("Pojemność nie może być ujemna."))
+            if fixed_W_for_n_analysis is None: exit()
+
+            # Przypisanie wartości do zmiennych używanych później w kodzie
+            param_values_to_test = n_values
+            fixed_capacity = fixed_W_for_n_analysis # Używane w pętli
+
+        elif scalability_param == 'W':
+            W_values = get_int_list(f"Podaj wartości 'W' (pojemności) do testowania", default=W_values_default)
+            if W_values is None: exit()
+            if not all(isinstance(val, int) and val >= 0 for val in W_values): print("Błąd: Pojemności 'W' muszą być nieujemnymi liczbami całkowitymi."); exit()
+
+            fixed_n_for_W_analysis = get_user_input(f"Podaj stałą liczbę przedmiotów 'n' dla tej analizy", int, default=fixed_n_default, validation_func=lambda x: x>0 or print("Liczba przedmiotów 'n' musi być dodatnia."))
+            if fixed_n_for_W_analysis is None: exit()
+
+            # Przypisanie wartości do zmiennych używanych później w kodzie
+            param_values_to_test = W_values
+            fixed_n = fixed_n_for_W_analysis # Używane w pętli
+
+        # Pytanie o algorytmy (wspólne dla obu analiz skalowalności)
+        algo_input = input(f"Podaj algorytmy do analizy (oddzielone spacją, domyślnie: {' '.join(algorithms_to_scale_default)}): ")
+        if algo_input.strip(): # Jeśli użytkownik coś wpisał
+            algorithms_to_scale = [a.strip().lower() for a in algo_input.split()]
+            known_algos = {'dynamic', 'backtracking', 'brute_force'} # Zdefiniuj znane algorytmy
+            # Prosta walidacja
+            valid_algos = [a for a in algorithms_to_scale if a in known_algos]
+            invalid_algos = [a for a in algorithms_to_scale if a not in known_algos]
+            if invalid_algos:
+                 print(f"Ostrzeżenie: Poniższe algorytmy są nieznane i zostaną pominięte: {', '.join(invalid_algos)}")
+                 print(f"Dostępne algorytmy: {', '.join(known_algos)}")
+            algorithms_to_scale = valid_algos # Użyj tylko poprawnych
+            if not algorithms_to_scale:
+                 print("Błąd: Nie wybrano żadnych poprawnych algorytmów do analizy.")
+                 exit()
+        else: # Jeśli użytkownik nic nie wpisał, użyj domyślnych
+             algorithms_to_scale = algorithms_to_scale_default
+
+        print("\n--- Podsumowanie parametrów analizy ---")
+        print(f"  Analiza wg: '{scalability_param}'")
+        if scalability_param == 'n':
+            print(f"  Testowane n: {n_values}")
+            print(f"  Stałe W: {fixed_W_for_n_analysis}")
+        else: # scalability_param == 'W'
+            print(f"  Testowane W: {W_values}")
+            print(f"  Stałe n: {fixed_n_for_W_analysis}")
+        print(f"  Algorytmy: {algorithms_to_scale}")
+        print(f"  Plik wyników: {scalability_results_file}")
+        input("\nNaciśnij Enter, aby rozpocząć analizę...") # Pauza przed uruchomieniem
+
+
+    # Ścieżki CSV (pozostają bez zmian)
     csv_path_small = os.path.join(script_dir, 'data', 'example_items.csv')
     csv_path_large = os.path.join(script_dir, 'data', 'items_large.csv')
+
+    print(f"\n===== Rozpoczynanie pracy w trybie: {mode} =====")
 
 # --- Wczytywanie/Generowanie danych (zależne od trybu) ---
 items = None # Resetuj items na początku
